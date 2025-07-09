@@ -2,6 +2,7 @@ import os
 import time
 import feedparser
 import requests
+import traceback
 from dotenv import load_dotenv
 from huggingface_hub import login
 from langchain_huggingface import HuggingFaceEndpoint
@@ -101,6 +102,11 @@ while True:
                 print("✅ Bearish alert sent!")
             else:
                 print("ℹ️ Skipped (not critical bearish)")
-    except Exception as e:
-        print(f"⚠️ Error: {e}")
-    time.sleep(CHECK_INTERVAL)
+   except Exception as e:
+        print("📦 Environment Loaded:")
+        print("HUGGINGFACE_TOKEN:", "✅" if HUGGINGFACE_TOKEN else "❌ MISSING")
+        print("TELEGRAM_BOT_TOKEN:", "✅" if TELEGRAM_BOT_TOKEN else "❌ MISSING")
+        print("CHAT_ID:", CHAT_ID)
+        print("⚠️ Full Exception:")
+        traceback.print_exc()
+time.sleep(CHECK_INTERVAL)
