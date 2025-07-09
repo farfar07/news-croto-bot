@@ -1,6 +1,6 @@
-langchain-core
-langchain-huggingface
-huggingface_hub
 feedparser
 requests
 python-dotenv
+huggingface_hub
+langchain-core
+langchain-huggingface
