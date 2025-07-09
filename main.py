@@ -20,7 +20,13 @@ RSS_URL = os.getenv(
 )
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", 300))
 
-# === Login to Hugging Face ===
+# === Debug Environment ===
+print("📦 Environment Loaded:")
+print("HUGGINGFACE_TOKEN:", "✅" if HUGGINGFACE_TOKEN else "❌ MISSING")
+print("TELEGRAM_BOT_TOKEN:", "✅" if TELEGRAM_BOT_TOKEN else "❌ MISSING")
+print("CHAT_ID:", CHAT_ID)
+
+# === Authenticate to Hugging Face ===
 login(HUGGINGFACE_TOKEN)
 
 llm = HuggingFaceEndpoint(
@@ -58,7 +64,9 @@ def analyze_article(title, summary):
 def send_telegram(msg):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     data = {'chat_id': CHAT_ID, 'text': msg, 'parse_mode': 'Markdown'}
-    requests.post(url, data=data)
+    res = requests.post(url, data=data)
+    if res.status_code != 200:
+        print(f"⚠️ Telegram error: {res.status_code} - {res.text}")
 
 def is_critical_bearish(summary_text, tone):
     summary_lower = summary_text.lower()
@@ -67,7 +75,7 @@ def is_critical_bearish(summary_text, tone):
         any(keyword in summary_lower for keyword in CRITICAL_KEYWORDS)
     )
 
-print("🐻 Crypto Bearish Alert Bot running on Railway...")
+print("🐻 Crypto Bearish Alert Bot running...")
 
 while True:
     try:
@@ -81,10 +89,10 @@ while True:
             print(f"\n📰 {title}")
             result = analyze_article(title, summary)
 
+            # Parse model output
             lines = result.strip().splitlines()
             parsed_summary = ""
             tone = ""
-
             for line in lines:
                 if line.lower().startswith("summary:"):
                     parsed_summary = line.split(":", 1)[1].strip()
@@ -102,11 +110,7 @@ while True:
                 print("✅ Bearish alert sent!")
             else:
                 print("ℹ️ Skipped (not critical bearish)")
-   except Exception as e:
-        print("📦 Environment Loaded:")
-        print("HUGGINGFACE_TOKEN:", "✅" if HUGGINGFACE_TOKEN else "❌ MISSING")
-        print("TELEGRAM_BOT_TOKEN:", "✅" if TELEGRAM_BOT_TOKEN else "❌ MISSING")
-        print("CHAT_ID:", CHAT_ID)
+    except Exception as e:
         print("⚠️ Full Exception:")
         traceback.print_exc()
-time.sleep(CHECK_INTERVAL)
+    time.sleep(CHECK_INTERVAL)
