@@ -2,21 +2,24 @@ import os
 import time
 import feedparser
 import requests
+from dotenv import load_dotenv
 from huggingface_hub import login
 from langchain_huggingface import HuggingFaceEndpoint
-from langchain.prompts import PromptTemplate
-from dotenv import load_dotenv
+from langchain_core.prompts import PromptTemplate
 
+# === Load environment variables ===
 load_dotenv()
 
-# === ENV ===
 HUGGINGFACE_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID", "-4891438477")
-RSS_URL = os.getenv("RSS_URL", "https://news.google.com/rss/search?q=crypto+OR+bitcoin+OR+ethereum+war+OR+SEC+OR+ETF+OR+inflation+OR+hack&hl=en-US&gl=US&ceid=US:en")
+RSS_URL = os.getenv(
+    "RSS_URL",
+    "https://news.google.com/rss/search?q=crypto+OR+bitcoin+OR+ethereum+war+OR+SEC+OR+ETF+OR+inflation+OR+hack&hl=en-US&gl=US&ceid=US:en"
+)
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", 300))
 
-# === HF AUTH ===
+# === Login to Hugging Face ===
 login(HUGGINGFACE_TOKEN)
 
 llm = HuggingFaceEndpoint(
@@ -25,9 +28,7 @@ llm = HuggingFaceEndpoint(
     max_new_tokens=128
 )
 
-prompt_template = PromptTemplate(
-    input_variables=["title", "summary"],
-    template="""
+prompt_template = PromptTemplate.from_template("""
 Summarize this news for crypto impact.
 
 Title: {title}
@@ -36,8 +37,7 @@ Summary: {summary}
 Respond:
 Summary: <short summary>
 Tone: [bullish/bearish/neutral]
-"""
-)
+""")
 
 seen_links = set()
 
@@ -56,7 +56,7 @@ def analyze_article(title, summary):
 
 def send_telegram(msg):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    data = {'chat_id': CHAT_ID, 'text': msg}
+    data = {'chat_id': CHAT_ID, 'text': msg, 'parse_mode': 'Markdown'}
     requests.post(url, data=data)
 
 def is_critical_bearish(summary_text, tone):
@@ -66,7 +66,7 @@ def is_critical_bearish(summary_text, tone):
         any(keyword in summary_lower for keyword in CRITICAL_KEYWORDS)
     )
 
-print("🐻 Crypto Bearish Alert Bot running...")
+print("🐻 Crypto Bearish Alert Bot running on Railway...")
 
 while True:
     try:
@@ -80,10 +80,10 @@ while True:
             print(f"\n📰 {title}")
             result = analyze_article(title, summary)
 
-            # Parse model output
             lines = result.strip().splitlines()
             parsed_summary = ""
             tone = ""
+
             for line in lines:
                 if line.lower().startswith("summary:"):
                     parsed_summary = line.split(":", 1)[1].strip()
@@ -91,7 +91,12 @@ while True:
                     tone = line.split(":", 1)[1].strip()
 
             if is_critical_bearish(parsed_summary, tone):
-                message = f"🚨 *CRITICAL BEARISH NEWS*\n📰 *{title}*\n🔗 {article.link}\n\n📉 {parsed_summary}"
+                message = (
+                    f"🚨 *CRITICAL BEARISH NEWS*\n"
+                    f"📰 *{title}*\n"
+                    f"🔗 {article.link}\n\n"
+                    f"📉 {parsed_summary}"
+                )
                 send_telegram(message)
                 print("✅ Bearish alert sent!")
             else:
